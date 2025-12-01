@@ -1,8 +1,7 @@
 <?php
-// app/init.php
+
 session_start();
 
-// load konfigurasi database dan konstanta
 require_once __DIR__ . '/config.php';
 
 /**

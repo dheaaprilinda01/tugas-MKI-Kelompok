@@ -1,7 +1,5 @@
 <?php
-// config.php
 
-// Sesuaikan dengan database kamu
 $db_host = 'localhost';
 $db_name = 'secure_ebanking'; // pastikan sama dengan nama DB di phpMyAdmin
 $db_user = 'root';            // default XAMPP
@@ -15,7 +13,6 @@ $options = [
 ];
 
 try {
-    // INI yang bikin variabel $pdo
     $pdo = new PDO($dsn, $db_user, $db_pass, $options);
 } catch (PDOException $e) {
     die("Koneksi database gagal: " . $e->getMessage());
@@ -25,6 +22,6 @@ try {
 date_default_timezone_set('Asia/Jakarta');
 
 // Konfigurasi keamanan
-define('MAX_LOGIN_ATTEMPTS', 5);  // max gagal login
-define('LOCKOUT_MINUTES', 15);    // lama lockout (menit)
-define('OTP_EXP_MINUTES', 5);     // lama OTP (menit)
+define('MAX_LOGIN_ATTEMPTS', 5);  
+define('LOCKOUT_MINUTES', 15); 
+define('OTP_EXP_MINUTES', 5);     

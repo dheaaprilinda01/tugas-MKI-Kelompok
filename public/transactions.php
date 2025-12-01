@@ -9,7 +9,6 @@ $stmt = $pdo->prepare("SELECT username, email FROM users WHERE id = ?");
 $stmt->execute([$user_id]);
 $user = $stmt->fetch();
 
-// Ambil rekening user (anggap 1 rekening utama)
 $stmt = $pdo->prepare("SELECT id, account_number FROM accounts WHERE user_id = ? LIMIT 1");
 $stmt->execute([$user_id]);
 $account = $stmt->fetch();
