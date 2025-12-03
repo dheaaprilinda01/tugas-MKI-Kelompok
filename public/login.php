@@ -21,16 +21,18 @@ function get_lock_status(PDO $pdo, int $userId): ?array {
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $usernameInput = trim($_POST['username'] ?? '');
-    $password = $_POST['password'] ?? '';
+    $password      = $_POST['password'] ?? '';
 
     if ($usernameInput === '' || $password === '') {
         $error = 'Silakan isi username dan kata sandi.';
     } else {
+
         $stmt = $pdo->prepare("SELECT * FROM users WHERE username = ? LIMIT 1");
         $stmt->execute([$usernameInput]);
         $user = $stmt->fetch();
 
         if (!$user) {
+
             $error = 'Kombinasi username / kata sandi tidak sesuai.';
         } else {
             $lock = get_lock_status($pdo, (int)$user['id']);
@@ -39,7 +41,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $lockedUntil = date('d M Y H:i', strtotime($lock['locked_until']));
                 $error = "Akun Anda untuk sementara dikunci sampai {$lockedUntil} karena percobaan masuk yang berulang.";
             } else {
+
                 if (!password_verify($password, $user['password_hash'])) {
+
                     if ($lock) {
                         $failed = (int)$lock['failed_attempts'] + 1;
                         $lockedUntil = null;
@@ -71,42 +75,54 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                . ($sisa > 0 ? " Percobaan tersisa: {$sisa}." : '');
                     }
                 } else {
+
                     $stmt = $pdo->prepare("DELETE FROM login_attempts WHERE user_id = ?");
                     $stmt->execute([$user['id']]);
 
-                    $needRegisterDevice = true;
-                    if (!empty($_COOKIE['device_token'])) {
-                        $deviceToken = $_COOKIE['device_token'];
-                        $stmt = $pdo->prepare("
-                            SELECT id FROM trusted_devices
-                            WHERE user_id = ? AND device_token = ?
-                            LIMIT 1
-                        ");
-                        $stmt->execute([$user['id'], $deviceToken]);
-                        $trusted = $stmt->fetch();
-                        if ($trusted) {
-                            $needRegisterDevice = false;
-                        }
-                    }
-
-                    $stmt = $pdo->prepare("DELETE FROM otp_codes WHERE user_id = ? AND is_used = 0");
-                    $stmt->execute([$user['id']]);
-
-                    $otp       = random_int(100000, 999999);
-                    $expiresAt = date('Y-m-d H:i:s', time() + OTP_EXP_MINUTES * 60);
+                    $currentToken = $_COOKIE['device_token'] ?? null;
 
                     $stmt = $pdo->prepare("
-                        INSERT INTO otp_codes (user_id, code, expires_at)
-                        VALUES (?, ?, ?)
+                        SELECT device_token 
+                        FROM trusted_devices
+                        WHERE user_id = ?
                     ");
-                    $stmt->execute([$user['id'], $otp, $expiresAt]);
+                    $stmt->execute([$user['id']]);
+                    $existingTokens = $stmt->fetchAll(PDO::FETCH_COLUMN);
 
-                    $_SESSION['pending_user_id']       = $user['id'];
-                    $_SESSION['device_needs_register'] = $needRegisterDevice;
+                    $needRegisterDevice = true;
 
+                    if ($existingTokens && count($existingTokens) > 0) {
+                        if ($currentToken && in_array($currentToken, $existingTokens, true)) {
 
-                    header('Location: mfa.php');
-                    exit;
+                            $needRegisterDevice = false;
+                        } else {
+                            $error = 'Akun ini sedang aktif di perangkat lain. '
+                                   . 'Silakan logout terlebih dahulu dari perangkat tersebut sebelum masuk di perangkat baru.';
+                        }
+                    } else {
+                        $needRegisterDevice = true;
+                    }
+
+                    if ($error === '') {
+
+                        $stmt = $pdo->prepare("DELETE FROM otp_codes WHERE user_id = ? AND is_used = 0");
+                        $stmt->execute([$user['id']]);
+
+                        $otp       = random_int(100000, 999999);
+                        $expiresAt = date('Y-m-d H:i:s', time() + OTP_EXP_MINUTES * 60);
+
+                        $stmt = $pdo->prepare("
+                            INSERT INTO otp_codes (user_id, code, expires_at)
+                            VALUES (?, ?, ?)
+                        ");
+                        $stmt->execute([$user['id'], $otp, $expiresAt]);
+
+                        $_SESSION['pending_user_id']       = $user['id'];
+                        $_SESSION['device_needs_register'] = $needRegisterDevice;
+
+                        header('Location: mfa.php');
+                        exit;
+                    }
                 }
             }
         }
@@ -237,7 +253,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             font-size: 30px;
             line-height: 1.25;
             font-weight: 700;
-            color: #facc15; /* kuning emas */
+            color: #facc15;
             margin-bottom: 14px;
         }
 
@@ -350,21 +366,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         <h1 class="welcome-title">Selamat datang kembali di Ocean Bank.</h1>
 
         <p class="welcome-text">
-            Kelola rekening, pantau saldo, dan lakukan transaksi harian dengan aman melalui layanan internet banking kami.
+            Kelola rekening, pantau saldo, dan lakukan transaksi harian melalui layanan internet banking.
         </p>
 
         <ul class="feature-list">
             <li>
                 <div class="feature-dot"></div>
-                <div>Autentikasi berlapis untuk setiap proses masuk.</div>
+                <div>Proses masuk dilindungi dengan verifikasi berlapis.</div>
             </li>
             <li>
                 <div class="feature-dot"></div>
-                <div>Pencatatan transaksi yang dapat ditelusuri.</div>
+                <div>Pencatatan transaksi disimpan pada sistem untuk keperluan penelusuran.</div>
             </li>
             <li>
                 <div class="feature-dot"></div>
-                <div>Akses dari perangkat yang telah terverifikasi.</div>
+                <div>Akses dibatasi pada perangkat yang telah terdaftar.</div>
             </li>
         </ul>
 
@@ -427,7 +443,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz"
         crossorigin="anonymous"></script>
 <script>
-    // Toggle show/hide password
     const toggleBtn = document.getElementById('togglePassword');
     const pwdInput = document.getElementById('password');
 
